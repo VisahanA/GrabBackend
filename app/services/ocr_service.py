@@ -107,22 +107,9 @@ class OCRService:
             
             for (bbox, text, confidence) in results:
                 if text.strip() and confidence > 0:  # Only include text with positive confidence
-                    # Convert bounding box from 4 points to x, y, width, height
-                    bbox_points = np.array(bbox)
-                    x_min = int(np.min(bbox_points[:, 0]))
-                    y_min = int(np.min(bbox_points[:, 1]))
-                    x_max = int(np.max(bbox_points[:, 0]))
-                    y_max = int(np.max(bbox_points[:, 1]))
-                    
                     text_block = TextBlock(
                         text=text.strip(),
-                        confidence=float(confidence * 100),  # Convert to percentage (0-100)
-                        bounding_box={
-                            'x': x_min,
-                            'y': y_min,
-                            'width': x_max - x_min,
-                            'height': y_max - y_min
-                        }
+                        confidence=float(confidence * 100)  # Convert to percentage (0-100)
                     )
                     text_blocks.append(text_block)
                     full_text_parts.append(text.strip())

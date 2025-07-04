@@ -55,10 +55,6 @@ class TextBlock(BaseModel):
     """Individual text block detected in the image"""
     text: str = Field(..., description="Extracted text content")
     confidence: float = Field(..., description="Confidence score (0-100)")
-    bounding_box: Optional[dict] = Field(
-        default=None,
-        description="Bounding box coordinates {x, y, width, height}"
-    )
 
 
 class OCRResponse(BaseModel):
@@ -88,13 +84,11 @@ class OCRResponse(BaseModel):
                 "text_blocks": [
                     {
                         "text": "Hello World!",
-                        "confidence": 95.5,
-                        "bounding_box": {"x": 10, "y": 20, "width": 150, "height": 30}
+                        "confidence": 95.5
                     },
                     {
                         "text": "This is sample text.",
-                        "confidence": 88.2,
-                        "bounding_box": {"x": 10, "y": 60, "width": 200, "height": 25}
+                        "confidence": 88.2
                     }
                 ],
                 "total_confidence": 91.85,
