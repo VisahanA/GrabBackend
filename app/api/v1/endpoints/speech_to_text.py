@@ -30,8 +30,6 @@ router = APIRouter()
     - English language support only
     - Confidence threshold filtering
     - Audio preprocessing for better accuracy
-    - Optional word-level timestamps
-    - Optional speaker diarization
     
     **Supported Audio Formats:**
     - WAV, MP3, M4A, FLAC, OGG

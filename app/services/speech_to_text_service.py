@@ -9,7 +9,7 @@ import threading
 from typing import Dict, List, Tuple, Optional
 from urllib.parse import urlparse
 
-from app.schemas.speech_to_text import STTRequest, STTResponse, WordTimestamp, SpeakerSegment
+from app.schemas.speech_to_text import STTRequest, STTResponse
 from app.core.config import settings
 
 from pydub.utils import which
@@ -171,7 +171,7 @@ class SpeechToTextService:
         except Exception as e:
             raise ValueError(f"Failed to preprocess audio: {str(e)}")
     
-    def extract_text_with_confidence(self, audio: AudioSegment, enable_word_timestamps: bool = False) -> Dict:
+    def extract_text_with_confidence(self, audio: AudioSegment) -> Dict:
         """Extract text with confidence scores using SpeechRecognition"""
         try:
             # Convert AudioSegment to bytes for SpeechRecognition
@@ -209,29 +209,9 @@ class SpeechToTextService:
                 # Calculate confidence (Google doesn't always provide this)
                 confidence = best_alternative.get('confidence', 0.8) * 100
                 
-                # For word timestamps, we'll use a simple approach
-                # In production, you might want to use more sophisticated methods
-                word_timestamps = []
-                if enable_word_timestamps and transcribed_text:
-                    # Simple word-level timing (approximate)
-                    words = transcribed_text.split()
-                    total_duration = len(audio) / 1000.0  # Convert to seconds
-                    word_duration = total_duration / len(words) if words else 0
-                    
-                    for i, word in enumerate(words):
-                        start_time = i * word_duration
-                        end_time = (i + 1) * word_duration
-                        word_timestamps.append(WordTimestamp(
-                            word=word,
-                            start_time=start_time,
-                            end_time=end_time,
-                            confidence=confidence
-                        ))
-                
                 return {
                     'transcribed_text': transcribed_text,
-                    'confidence': confidence,
-                    'word_timestamps': word_timestamps if enable_word_timestamps else None
+                    'confidence': confidence
                 }
                 
             except sr.UnknownValueError:
@@ -276,8 +256,7 @@ class SpeechToTextService:
             
             # Extract text with confidence
             stt_result = self.extract_text_with_confidence(
-                audio,
-                request.enable_word_timestamps
+                audio
             )
             
             # Filter by confidence threshold if needed
@@ -285,35 +264,30 @@ class SpeechToTextService:
                 # If overall confidence is below threshold, return empty result
                 transcribed_text = ""
                 total_confidence = 0.0
-                word_timestamps = []
             else:
                 transcribed_text = stt_result['transcribed_text']
                 total_confidence = stt_result['confidence']
-                word_timestamps = stt_result['word_timestamps'] or []
             
-            # For speaker diarization, we'll implement a simple approach
-            # In production, you might want to use more sophisticated speaker diarization
-            speaker_segments = None
-            if request.enable_speaker_diarization and transcribed_text:
-                # Simple approach: treat entire audio as one speaker
-                speaker_segments = [
-                    SpeakerSegment(
-                        speaker_id=1,
-                        start_time=0.0,
-                        end_time=audio_info['duration'],
-                        text=transcribed_text,
-                        confidence=total_confidence
-                    )
-                ]
+            # Pass transcribed text to LLM service for processing
+            if transcribed_text:
+                from app.services.llm_service import LLMService
+                from app.schemas.llm import LLMRequest
+                
+                llm_service = LLMService()
+                llm_request = LLMRequest(prompt=transcribed_text)
+                llm_response = llm_service.generate_text(llm_request)
+                
+                # Use LLM response as the final transcribed text
+                final_text = llm_response.generated_text
+            else:
+                final_text = ""
             
             # Calculate processing time
             processing_time = (time.time() - start_time) * 1000
             
             return STTResponse(
                 success=True,
-                transcribed_text=transcribed_text,
-                word_timestamps=word_timestamps if request.enable_word_timestamps else None,
-                speaker_segments=speaker_segments,
+                transcribed_text=final_text,
                 total_confidence=total_confidence,
                 processing_time_ms=processing_time,
                 audio_info=audio_info
