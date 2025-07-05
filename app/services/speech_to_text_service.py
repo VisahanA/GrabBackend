@@ -405,6 +405,7 @@ class SpeechToTextService:
                 llm_service = LLMService()
                 llm_request = LLMRequest(prompt=transcribed_text)
                 llm_response = llm_service.generate_text(llm_request)
+                print(f"LLM response: {llm_response}")
                 
                 # Use LLM response as the final transcribed text
                 final_text = llm_response.generated_text
