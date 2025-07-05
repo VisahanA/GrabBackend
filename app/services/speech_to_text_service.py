@@ -12,6 +12,11 @@ from urllib.parse import urlparse
 from app.schemas.speech_to_text import STTRequest, STTResponse
 from app.core.config import settings
 
+
+# Set paths to your local ffmpeg/ffprobe binaries
+os.environ["FFMPEG_BINARY"] = r"C:\ffmpeg-2025-06-28-git-cfd1f81e7d-essentials_build\bin" #"/path/to/ffmpeg"
+os.environ["FFPROBE_BINARY"] = r"C:\ffmpeg-2025-06-28-git-cfd1f81e7d-essentials_build\bin" #"/path/to/ffprobe"
+
 from pydub.utils import which
 print("FFmpeg:", which("ffmpeg"))
 print("FFprobe:", which("ffprobe"))
