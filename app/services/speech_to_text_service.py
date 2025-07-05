@@ -8,8 +8,9 @@ import os
 import threading
 from typing import Dict, List, Tuple, Optional
 from urllib.parse import urlparse
+from fastapi import UploadFile
 
-from app.schemas.speech_to_text import STTRequest, STTResponse
+from app.schemas.speech_to_text import STTRequest, STTResponse, STTFileRequest
 from app.core.config import settings
 
 
@@ -54,6 +55,47 @@ class SpeechToTextService:
         self.max_audio_size = settings.MAX_AUDIO_SIZE_MB * 1024 * 1024  # Convert to bytes
         self.download_timeout = settings.AUDIO_DOWNLOAD_TIMEOUT
         
+    def save_uploaded_file_to_temp(self, file: UploadFile) -> str:
+        """Save uploaded file to temporary location and return file path"""
+        try:
+            # Validate file size
+            file_content = file.file.read()
+            if len(file_content) > self.max_audio_size:
+                raise ValueError(f"Audio size ({len(file_content)} bytes) exceeds maximum allowed size ({self.max_audio_size} bytes)")
+            
+            # Get file extension
+            file_extension = self._get_file_extension_from_filename(file.filename or "audio.wav")
+            
+            # Validate file extension
+            if file_extension not in self.supported_formats:
+                raise ValueError(f"Unsupported audio format: {file_extension}. Supported formats: {', '.join(self.supported_formats)}")
+            
+            # Create temporary file with proper extension
+            with TempFileManager(suffix=file_extension) as temp_file:
+                print(f"Writing uploaded audio to temporary file: {temp_file.name}")
+                temp_file.write(file_content)
+                temp_file_path = temp_file.name
+                
+                print(f"Audio saved to temporary location: {temp_file_path}")
+                print(f"File size: {len(file_content)} bytes")
+                
+                return temp_file_path
+            
+        except Exception as e:
+            raise ValueError(f"Failed to save uploaded audio file: {str(e)}")
+    
+    def _get_file_extension_from_filename(self, filename: str) -> str:
+        """Get file extension from filename"""
+        if not filename:
+            return '.wav'
+        
+        # Get extension and ensure it has a dot
+        ext = os.path.splitext(filename.lower())[1]
+        if not ext:
+            return '.wav'
+        
+        return ext
+    
     def download_audio_to_temp(self, audio_url: str) -> str:
         """Download audio from HTTPS URL to temporary location and return file path"""
         try:
@@ -237,7 +279,89 @@ class SpeechToTextService:
             'size_bytes': len(audio.raw_data) if hasattr(audio, 'raw_data') else 0
         }
     
-
+    async def process_uploaded_file_request(self, file: UploadFile, request: STTFileRequest) -> STTResponse:
+        """Process Speech-to-Text request with uploaded file"""
+        start_time = time.time()
+        temp_file_path = None
+        
+        try:
+            # Step 1: Save uploaded file to temporary location
+            print(f"Processing STT request for uploaded file: {file.filename}")
+            temp_file_path = self.save_uploaded_file_to_temp(file)
+            
+            # Step 2: Load audio from temporary location
+            audio = self.load_audio_from_temp(temp_file_path)
+            
+            # Get original audio info
+            audio_info = self.get_audio_info(audio)
+            
+            # Preprocess audio
+            audio = self.preprocess_audio(audio)
+            
+            # Extract text with confidence
+            stt_result = self.extract_text_with_confidence(audio)
+            
+            # Filter by confidence threshold if needed
+            if request.confidence_threshold > 0 and stt_result['confidence'] < request.confidence_threshold:
+                # If overall confidence is below threshold, return empty result
+                transcribed_text = ""
+                total_confidence = 0.0
+            else:
+                transcribed_text = stt_result['transcribed_text']
+                total_confidence = stt_result['confidence']
+            
+            # Pass transcribed text to LLM service for processing
+            if transcribed_text:
+                from app.services.llm_service import LLMService
+                from app.schemas.llm import LLMRequest
+                
+                llm_service = LLMService()
+                llm_request = LLMRequest(prompt=transcribed_text)
+                llm_response = llm_service.generate_text(llm_request)
+                
+                # Use LLM response as the final transcribed text
+                final_text = llm_response.generated_text
+            else:
+                final_text = ""
+            
+            # Calculate processing time
+            processing_time = (time.time() - start_time) * 1000
+            
+            return STTResponse(
+                success=True,
+                transcribed_text=final_text,
+                total_confidence=total_confidence,
+                processing_time_ms=processing_time,
+                audio_info=audio_info
+            )
+            
+        except Exception as e:
+            # Return error response
+            processing_time = (time.time() - start_time) * 1000
+            error_message = str(e)
+            
+            # Keep temporary file for inspection/reuse
+            if temp_file_path and os.path.exists(temp_file_path):
+                print(f"Temporary audio file preserved at: {temp_file_path}")
+            
+            # Determine error code based on error type
+            if "save" in error_message.lower() or "upload" in error_message.lower():
+                error_code = "AUDIO_UPLOAD_ERROR"
+            elif "format" in error_message.lower() or "audio" in error_message.lower():
+                error_code = "INVALID_AUDIO_FORMAT"
+            elif "size" in error_message.lower():
+                error_code = "AUDIO_TOO_LARGE"
+            elif "speech" in error_message.lower():
+                error_code = "SPEECH_RECOGNITION_ERROR"
+            else:
+                error_code = "UNKNOWN_ERROR"
+            
+            # Raise exception to be handled by the FastAPI endpoint
+            raise Exception(f"{error_code}: {error_message}")
+        finally:
+            # Keep temporary files for inspection/reuse
+            if temp_file_path and os.path.exists(temp_file_path):
+                print(f"Temporary audio file preserved at: {temp_file_path}")
     
     async def process_stt_request(self, request: STTRequest) -> STTResponse:
         """Main method to process Speech-to-Text request"""
@@ -327,5 +451,5 @@ class SpeechToTextService:
                 print(f"Temporary audio file preserved at: {temp_file_path}")
 
 
-# Global SpeechToText service instance
+# Create service instance
 stt_service = SpeechToTextService() 

@@ -1,5 +1,5 @@
 from pydantic import BaseModel, HttpUrl, Field
-from typing import Optional, List
+from typing import Optional, List, Union
 from enum import Enum
 
 
@@ -26,26 +26,36 @@ class STTRequest(BaseModel):
         description="Minimum confidence threshold for word detection (0-100)"
     )
 
-
-
     class Config:
         json_schema_extra = {
             "example": {
                 "audio_url": "https://example.com/audio/sample.wav",
                 "confidence_threshold": 0.0
-
             }
         }
 
 
+class STTFileRequest(BaseModel):
+    """Request schema for Speech-to-Text API with file upload"""
+    confidence_threshold: Optional[float] = Field(
+        default=0.0,
+        ge=0.0,
+        le=100.0,
+        description="Minimum confidence threshold for word detection (0-100)"
+    )
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "confidence_threshold": 0.0
+            }
+        }
 
 
 class STTResponse(BaseModel):
     """Response schema for Speech-to-Text API"""
     success: bool = Field(..., description="Whether the transcription was successful")
     transcribed_text: str = Field(..., description="Full transcribed text from the audio")
-
-
     total_confidence: float = Field(
         ..., 
         description="Overall confidence score for the entire transcription"
@@ -58,8 +68,6 @@ class STTResponse(BaseModel):
             "example": {
                 "success": True,
                 "transcribed_text": "Hello world! This is a sample audio transcription.",
-
-
                 "total_confidence": 91.85,
                 "processing_time_ms": 2500.5,
                 "audio_info": {
