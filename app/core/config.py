@@ -13,9 +13,9 @@ class Settings(BaseSettings):
     
     # API Settings
     API_V1_STR: str = "/api/v1"
-    PROJECT_NAME: str = "OCR API"
+    PROJECT_NAME: str = "OCR & Speech-to-Text API"
     VERSION: str = "1.0.0"
-    DESCRIPTION: str = "A robust English-only OCR API that extracts text from images using EasyOCR"
+    DESCRIPTION: str = "A robust API that extracts text from images using OCR and transcribes audio to text using Speech Recognition"
     
     # Server Settings
     HOST: str = Field(default="0.0.0.0", env="HOST")
@@ -32,6 +32,18 @@ class Settings(BaseSettings):
     MAX_IMAGE_SIZE_MB: int = Field(default=10, env="MAX_IMAGE_SIZE_MB")
     DEFAULT_OCR_LANGUAGE: str = Field(default="eng", env="DEFAULT_OCR_LANGUAGE")
     IMAGE_DOWNLOAD_TIMEOUT: int = Field(default=30, env="IMAGE_DOWNLOAD_TIMEOUT")
+    
+    # SpeechToText Settings
+    MAX_AUDIO_SIZE_MB: int = Field(default=25, env="MAX_AUDIO_SIZE_MB")
+    AUDIO_DOWNLOAD_TIMEOUT: int = Field(default=30, env="AUDIO_DOWNLOAD_TIMEOUT")
+    SUPPORTED_AUDIO_FORMATS: List[str] = Field(
+        default=["wav", "mp3", "m4a", "flac", "ogg"],
+        env="SUPPORTED_AUDIO_FORMATS"
+    )
+    
+
+    
+
     
     # EasyOCR Settings
     USE_GPU: bool = Field(

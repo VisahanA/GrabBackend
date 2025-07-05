@@ -1,9 +1,10 @@
-# OCR API
+# OCR & Speech-to-Text API
 
-A robust FastAPI-based OCR (Optical Character Recognition) API that extracts text from images using EasyOCR.
+A robust FastAPI-based API that extracts text from images using OCR and transcribes audio to text using Speech Recognition.
 
 ## Features
 
+### OCR (Optical Character Recognition)
 - 🔤 **English OCR support** - Specialized for English language text recognition
 - 📸 **Multiple image formats** - Supports JPEG, PNG, BMP, TIFF, and WEBP formats
 - 🎯 **Confidence scoring** - Returns confidence scores for extracted text blocks
@@ -11,8 +12,21 @@ A robust FastAPI-based OCR (Optical Character Recognition) API that extracts tex
 - 🔧 **Image preprocessing** - Automatic image enhancement for better OCR accuracy
 - 🌐 **URL-based processing** - Process images directly from URLs
 - 📝 **Detailed metadata** - Returns image information and processing statistics
+
+### Speech-to-Text
+- 🎤 **Multiple English variants** - Supports US, UK, Australian, and Canadian English
+- 🔊 **Multiple audio formats** - Supports WAV, MP3, M4A, FLAC, and OGG formats
+- 🎯 **Confidence scoring** - Returns confidence scores for transcribed text
+- ⏱️ **Word timestamps** - Optional word-level timing information
+- 👥 **Speaker diarization** - Optional speaker identification
+- 🔧 **Audio preprocessing** - Automatic audio enhancement for better transcription
+- 🌐 **URL-based processing** - Process audio directly from URLs
+- 📝 **Detailed metadata** - Returns audio information and processing statistics
+
+### General Features
 - 🧪 **Well-tested** - Comprehensive test suite with mocking
 - 📚 **Auto-generated documentation** - Interactive API docs with Swagger UI
+- 🚀 **Production ready** - Error handling, validation, and monitoring
 
 ## Project Structure
 
@@ -28,19 +42,23 @@ GrabBackend/
 │   │       ├── api.py          # API router configuration
 │   │       └── endpoints/
 │   │           ├── __init__.py
-│   │           └── ocr.py      # OCR endpoints
+│   │           ├── ocr.py      # OCR endpoints
+│   │           └── speech_to_text.py  # Speech-to-Text endpoints
 │   ├── core/
 │   │   ├── __init__.py
 │   │   └── config.py           # Application configuration
 │   ├── schemas/
 │   │   ├── __init__.py
-│   │   └── ocr.py              # Pydantic schemas
+│   │   ├── ocr.py              # OCR Pydantic schemas
+│   │   └── speech_to_text.py   # Speech-to-Text Pydantic schemas
 │   └── services/
 │       ├── __init__.py
-│       └── ocr_service.py      # OCR business logic
+│       ├── ocr_service.py      # OCR business logic
+│       └── speech_to_text_service.py  # Speech-to-Text business logic
 ├── tests/
 │   ├── __init__.py
-│   └── test_ocr.py             # Test cases
+│   ├── test_ocr.py             # OCR test cases
+│   └── test_speech_to_text.py  # Speech-to-Text test cases
 ├── requirements.txt            # Python dependencies
 └── README.md                   # This file
 ```
@@ -50,10 +68,10 @@ GrabBackend/
 ### System Requirements
 
 - Python 3.8+
-- **No additional system dependencies required!** EasyOCR works out of the box.
+- **No additional system dependencies required!** EasyOCR and SpeechRecognition work out of the box.
 
 ### GPU Support (Optional)
-For faster processing, you can enable GPU acceleration if you have:
+For faster OCR processing, you can enable GPU acceleration if you have:
 - NVIDIA GPU with CUDA support
 - PyTorch with CUDA support
 
@@ -96,8 +114,11 @@ The API can be configured using environment variables:
 | `PORT` | `8000` | Server port |
 | `DEBUG` | `false` | Debug mode |
 | `MAX_IMAGE_SIZE_MB` | `10` | Maximum image size in MB |
+| `MAX_AUDIO_SIZE_MB` | `25` | Maximum audio size in MB |
 | `DEFAULT_OCR_LANGUAGE` | `eng` | Default OCR language |
+| `DEFAULT_STT_LANGUAGE` | `en-US` | Default Speech-to-Text language |
 | `IMAGE_DOWNLOAD_TIMEOUT` | `30` | Image download timeout (seconds) |
+| `AUDIO_DOWNLOAD_TIMEOUT` | `30` | Audio download timeout (seconds) |
 | `USE_GPU` | `false` | Enable GPU acceleration for EasyOCR |
 | `ALLOWED_ORIGINS` | `*` | CORS allowed origins |
 | `RATE_LIMIT_PER_MINUTE` | `60` | Rate limit per minute |
@@ -128,7 +149,7 @@ Once the server is running, visit:
 
 ## API Endpoints
 
-### Core Endpoints
+### OCR Endpoints
 
 #### `POST /api/v1/ocr/extract-text`
 Extract text from an image URL.
@@ -151,13 +172,7 @@ Extract text from an image URL.
   "text_blocks": [
     {
       "text": "Hello World!",
-      "confidence": 95.5,
-      "bounding_box": {
-        "x": 10,
-        "y": 20,
-        "width": 150,
-        "height": 30
-      }
+      "confidence": 95.5
     }
   ],
   "total_confidence": 91.85,
@@ -179,6 +194,66 @@ Get list of supported OCR languages.
 #### `GET /api/v1/ocr/health`
 Health check for OCR service.
 
+### Speech-to-Text Endpoints
+
+#### `POST /api/v1/stt/transcribe`
+Transcribe audio to text.
+
+**Request Body:**
+```json
+{
+  "audio_url": "https://example.com/audio.wav",
+  "language": "en-US",
+  "confidence_threshold": 60.0,
+  "enable_word_timestamps": false,
+  "enable_speaker_diarization": false
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "transcribed_text": "Hello world! This is a sample audio transcription.",
+  "word_timestamps": [
+    {
+      "word": "Hello",
+      "start_time": 0.0,
+      "end_time": 0.5,
+      "confidence": 95.5
+    }
+  ],
+  "speaker_segments": [
+    {
+      "speaker_id": 1,
+      "start_time": 0.0,
+      "end_time": 2.5,
+      "text": "Hello world! This is a sample audio transcription.",
+      "confidence": 91.85
+    }
+  ],
+  "total_confidence": 91.85,
+  "processing_time_ms": 2500.5,
+  "audio_info": {
+    "duration": 2.5,
+    "format": "WAV",
+    "sample_rate": 16000,
+    "channels": 1,
+    "size_bytes": 204800
+  },
+  "language_detected": "en-US"
+}
+```
+
+#### `GET /api/v1/stt/supported-languages`
+Get list of supported Speech-to-Text languages.
+
+#### `GET /api/v1/stt/supported-formats`
+Get list of supported audio formats.
+
+#### `GET /api/v1/stt/health`
+Health check for Speech-to-Text service.
+
 ### Utility Endpoints
 
 #### `GET /`
@@ -190,6 +265,8 @@ Basic health check.
 ## Usage Examples
 
 ### Python with requests
+
+#### OCR Example
 ```python
 import requests
 
@@ -199,151 +276,133 @@ response = requests.post(
     json={
         "image_url": "https://example.com/sample-image.jpg",
         "language": "eng",
-        "confidence_threshold": 70.0,
+        "confidence_threshold": 60.0,
         "preprocess_image": True
     }
 )
 
-result = response.json()
-print(f"Extracted text: {result['extracted_text']}")
-print(f"Confidence: {result['total_confidence']:.2f}%")
+if response.status_code == 200:
+    result = response.json()
+    print(f"Extracted text: {result['extracted_text']}")
+    print(f"Confidence: {result['total_confidence']}%")
+else:
+    print(f"Error: {response.json()}")
 ```
 
-### cURL
+#### Speech-to-Text Example
+```python
+import requests
+
+# Transcribe audio to text
+response = requests.post(
+    "http://localhost:8000/api/v1/stt/transcribe",
+    json={
+        "audio_url": "https://example.com/sample-audio.wav",
+        "language": "en-US",
+        "confidence_threshold": 60.0,
+        "enable_word_timestamps": True,
+        "enable_speaker_diarization": False
+    }
+)
+
+if response.status_code == 200:
+    result = response.json()
+    print(f"Transcribed text: {result['transcribed_text']}")
+    print(f"Confidence: {result['total_confidence']}%")
+    
+    if result['word_timestamps']:
+        for word in result['word_timestamps']:
+            print(f"'{word['word']}' at {word['start_time']}-{word['end_time']}s")
+else:
+    print(f"Error: {response.json()}")
+```
+
+### cURL Examples
+
+#### OCR
 ```bash
 curl -X POST "http://localhost:8000/api/v1/ocr/extract-text" \
   -H "Content-Type: application/json" \
   -d '{
-    "image_url": "https://example.com/image.jpg",
+    "image_url": "https://example.com/sample-image.jpg",
     "language": "eng",
-    "confidence_threshold": 70.0,
+    "confidence_threshold": 60.0,
     "preprocess_image": true
   }'
 ```
 
-### JavaScript/Node.js
-```javascript
-const response = await fetch('http://localhost:8000/api/v1/ocr/extract-text', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify({
-    image_url: 'https://example.com/image.jpg',
-    language: 'eng',
-    confidence_threshold: 70.0,
-    preprocess_image: true
-  })
-});
-
-const result = await response.json();
-console.log('Extracted text:', result.extracted_text);
+#### Speech-to-Text
+```bash
+curl -X POST "http://localhost:8000/api/v1/stt/transcribe" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "audio_url": "https://example.com/sample-audio.wav",
+    "language": "en-US",
+    "confidence_threshold": 60.0,
+    "enable_word_timestamps": true,
+    "enable_speaker_diarization": false
+  }'
 ```
-
-## Supported Languages
-
-| Language | Code |
-|----------|------|
-| English | `eng` |
 
 ## Testing
 
 Run the test suite:
+
 ```bash
 # Run all tests
 pytest
 
-# Run with coverage
-pytest --cov=app
-
-# Run specific test file
+# Run specific test files
 pytest tests/test_ocr.py
+pytest tests/test_speech_to_text.py
 
-# Run with verbose output
-pytest -v
+# Run with coverage
+pytest --cov=app tests/
 ```
 
 ## Error Handling
 
-The API provides detailed error responses:
+The API provides comprehensive error handling with specific error codes:
 
-```json
-{
-  "success": false,
-  "error_code": "IMAGE_DOWNLOAD_ERROR",
-  "error_message": "Failed to download image from URL",
-  "details": {
-    "url": "https://invalid-url.com/image.jpg",
-    "status_code": 404
-  }
-}
-```
+### OCR Errors
+- `IMAGE_DOWNLOAD_ERROR` - Failed to download image
+- `INVALID_IMAGE_FORMAT` - Unsupported image format
+- `IMAGE_TOO_LARGE` - Image exceeds size limit
+- `OCR_PROCESSING_ERROR` - OCR processing failed
 
-### Common Error Codes
-
-- `IMAGE_DOWNLOAD_ERROR`: Failed to download image from URL
-- `INVALID_IMAGE_FORMAT`: Unsupported image format
-- `IMAGE_TOO_LARGE`: Image exceeds maximum size limit
-- `OCR_PROCESSING_ERROR`: OCR processing failed
-- `VALIDATION_ERROR`: Request validation failed
+### Speech-to-Text Errors
+- `AUDIO_DOWNLOAD_ERROR` - Failed to download audio
+- `INVALID_AUDIO_FORMAT` - Unsupported audio format
+- `AUDIO_TOO_LARGE` - Audio exceeds size limit
+- `SPEECH_RECOGNITION_ERROR` - Speech recognition failed
 
 ## Performance Considerations
 
-- **Image Size**: Larger images take longer to process. Consider resizing images before processing.
-- **Preprocessing**: Image preprocessing improves accuracy but increases processing time.
-- **Confidence Threshold**: Higher thresholds filter out low-confidence text but may miss valid text.
-- **Language**: Specifying the correct language improves accuracy and performance.
+### OCR Performance
+- **CPU Processing**: ~1-3 seconds per image (depending on size and complexity)
+- **GPU Processing**: ~0.5-1.5 seconds per image (with CUDA support)
+- **Memory Usage**: ~200-500MB per request
 
-## Security Notes
-
-- The API downloads images from URLs, which may pose security risks in production.
-- Consider implementing rate limiting and authentication for production use.
-- Validate and sanitize image URLs to prevent SSRF attacks.
-- Set appropriate resource limits to prevent DoS attacks.
+### Speech-to-Text Performance
+- **Processing Time**: ~1-5 seconds per minute of audio
+- **Memory Usage**: ~100-300MB per request
+- **Network Dependency**: Requires internet connection for Google Speech Recognition
 
 ## Contributing
 
 1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests for new functionality
-5. Run the test suite
-6. Submit a pull request
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## License
 
-This project is licensed under the MIT License.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Troubleshooting
+## Acknowledgments
 
-### Common Issues
-
-1. **EasyOCR installation issues**
-   - Ensure you have sufficient disk space (EasyOCR downloads models automatically)
-   - Check internet connectivity for first-time model download
-
-2. **Image download failures**
-   - Check internet connectivity
-   - Verify image URL is accessible
-   - Check if image URL requires authentication
-
-3. **Low OCR accuracy**
-   - Enable image preprocessing
-   - Ensure image quality is sufficient
-   - Try different image formats
-
-4. **Memory issues**
-   - Reduce maximum image size
-   - Disable GPU if running out of GPU memory
-   - Monitor memory usage
-
-5. **Slow processing**
-   - Enable GPU acceleration if available (`USE_GPU=true`)
-   - Reduce image size before processing
-   - Consider preprocessing images for better quality
-
-### Getting Help
-
-- Check the API documentation at `/api/v1/docs`
-- Review the test cases for usage examples
-- Open an issue on GitHub for bug reports or feature requests 
+- [EasyOCR](https://github.com/JaidedAI/EasyOCR) - For OCR functionality
+- [SpeechRecognition](https://github.com/Uberi/speech_recognition) - For speech-to-text functionality
+- [FastAPI](https://fastapi.tiangolo.com/) - For the web framework
+- [Pydantic](https://pydantic-docs.helpmanual.io/) - For data validation 
